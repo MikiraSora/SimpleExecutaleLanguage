@@ -17,5 +17,10 @@ public class Executor {
             }
         });
         parser.Parse(arrayList);
+
     }
+
+    public int GetFunctionCount(){
+        return 0;//// TODO: 2016/10/31
+        }
 }
