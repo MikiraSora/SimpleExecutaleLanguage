@@ -8,8 +8,8 @@ import java.io.Reader;
  */
 public class Loader {
 
-    abstract class ReadLineAction{
-        void ReadLine(String string){}
+    public static interface ReadLineAction{
+        public void ReadLine(String string);
     }
 
     static void LoadFromStream(InputStream inputStream,ReadLineAction action)throws Exception{
@@ -17,9 +17,12 @@ public class Loader {
         int c=0;
         String text=new String();
         while((c=reader.read())>=0){
-            if(c=='\n'){
+            if(c=='\t'||c=='\n')
+                continue;;
+            if(c=='\r'){
                 action.ReadLine(text);
                 text=new String();
+                reader.read();//skip \n
             }else{
                 text+=(char)c;
             }

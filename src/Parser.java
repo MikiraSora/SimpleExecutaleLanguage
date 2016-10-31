@@ -16,6 +16,11 @@ public class Parser {
             Unknown
         }
 
+        @Override
+        public String toString() {
+            return Integer.toString(line);
+        }
+
         //protected UnitType unit_type=UnitType.Unknown;
         public UnitType GetType(){return UnitType.Unknown;}
 
@@ -31,10 +36,17 @@ public class Parser {
         enum StatementType{
             Function,
             Call,
+            Return,
+            Goto,
             Unknown
         }
 
-        String current_paramster="";
+        @Override
+        public String toString() {
+            return String.format("%s - %s : %s",super.toString(),this.GetStatementType().toString(),statement_context);
+        }
+
+        //String current_paramster="";
 
         public abstract class Action{
             void onExecute(Object object){}
@@ -69,6 +81,11 @@ public class Parser {
                 Begin,End,Unknown
             }
 
+            @Override
+            public String toString() {
+                return String.format("%s - %s",super.toString(),this.GetFunctionType().toString());
+            }
+
             public FunctionType GetFunctionType(){return FunctionType.Unknown;}
 
             static class FunctionBody extends Function{
@@ -94,11 +111,31 @@ public class Parser {
 
         static class Call extends Statement{
             private Call(){}
-            Call(int line,String name,){super(line,name);}
+            Call(int line,String name){super(line,name);}
 
             @Override
             public StatementType GetStatementType() {
                 return StatementType.Call;
+            }
+        }
+
+        static class Goto extends Statement{
+            private Goto(){}
+            Goto(int line,String name){super(line,name);}
+
+            @Override
+            public StatementType GetStatementType() {
+                return StatementType.Goto;
+            }
+        }
+
+        static class Return extends Statement{
+            private Return(){}
+            Return(int line,String name){super(line,name);}
+
+            @Override
+            public StatementType GetStatementType() {
+                return StatementType.Return;
             }
         }
 
@@ -110,6 +147,11 @@ public class Parser {
             LoopBranch,
             Label,
             Unknown
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s - %s",super.toString(),this.GetSymbolType().toString());
         }
 
         //protected SymbolType symbol_type=SymbolType.Unknown;
@@ -127,6 +169,11 @@ public class Parser {
         public static class Condition extends Symbol{
             private Condition(){}
             Condition(int line){super(line);}
+
+            @Override
+            public String toString() {
+                return String.format("%s : %s",super.toString(),GetConditionType().toString());
+            }
 
             @Override
             public SymbolType GetSymbolType() {
@@ -195,6 +242,11 @@ public class Parser {
                LoopBegin,Continue,Break,Endloop,Unknown
             }
 
+            @Override
+            public String toString() {
+                return String.format("%s : %s",super.toString(),GetLoopType().toString());
+            }
+
             public LoopType GetLoopType(){return LoopType.Unknown;}
 
             static class LoopBegin extends Loop{
@@ -253,10 +305,15 @@ public class Parser {
     /*******/
     /**缓存区**/
     HashMap<Integer,Unit> StatementLine=new HashMap<>();
+    ArrayList<String> IncludeFileName=new ArrayList<>();
     /***Cache****/
     HashMap<String,Integer> LabelPositionCache=new HashMap<>();
     HashMap<String,Integer> FunctionPositionCache=new HashMap<>();
 
+    /***属性***/
+    private HashMap<String,String> propherty=new HashMap<>();
+    public void Set(String key,String value){propherty.put(key,value);}
+    public String Get(String key){return propherty.get(key);}
     /*
         #include "C:\stdmath.ml"
 
@@ -287,66 +344,134 @@ public class Parser {
 
     int GetNewLineId(){return StatementLine.size();}
 
-    public HashMap<Integer,Unit> Parse(ArrayList<String> statements)throws Exception{
+    public HashMap<Integer,Unit> Parse(ArrayList<String> statements)throws Exception {
         //int position=0;
-        String text=null,command=null,paramter=null;
-        Statement unit=null;
-        int c=0;
+        String text = null, command = null, paramter = null;
+        Unit unit = null;
+        int c = 0;
 
-        for(int position=0;position<statements.size();position++){
-            text=statements.get(0);
+        for (int position = 0; position < statements.size(); position++) {
+            text = statements.get(position);
+            if(text.isEmpty())
+                continue;
+
             //预处理
-            if(IsPreCompileCommand(text)) {
+            if (IsPreCompileCommand(text)) {
                 ExecutePreCommand(text);
             }
             //转换
             //Label
-            text.toLowerCase();
-            switch (text){
-                //case "endfunction":PushStatement(new Symbol.Condition.Endfunction(GetNewLineId()));break;
-                case "endloop":PushStatement(new Symbol.Loop.Endloop(GetNewLineId()));break;
-                case "loop":PushStatement(new Symbol.Loop.LoopBegin(GetNewLineId()));break;
-                case "break":PushStatement(new Symbol.Loop.Break(GetNewLineId()));break;
-                case "continue":PushStatement(new Symbol.Loop.Continue(GetNewLineId()));break;
-                case "endif":PushStatement(new Symbol.Condition.EndIf(GetNewLineId()));break;
-                case "else":PushStatement(new Symbol.Condition.Else(GetNewLineId()));break;
-                case "then":PushStatement(new Symbol.Condition.Then(GetNewLineId()));break;
-                default:{
-                    command=new String();
+            //text.toLowerCase();
+
+            switch (text.trim()) {
+                case "endfunction":
+                    PushStatement(new Statement.Function.EndFcuntion(GetNewLineId()));
+                    break;
+                case "endloop":
+                    PushStatement(new Symbol.Loop.Endloop(GetNewLineId()));
+                    break;
+                case "loop":
+                    PushStatement(new Symbol.Loop.LoopBegin(GetNewLineId()));
+                    break;
+                case "break":
+                    PushStatement(new Symbol.Loop.Break(GetNewLineId()));
+                    break;
+                case "continue":
+                    PushStatement(new Symbol.Loop.Continue(GetNewLineId()));
+                    break;
+                case "endif":
+                    PushStatement(new Symbol.Condition.EndIf(GetNewLineId()));
+                    break;
+                case "else":
+                    PushStatement(new Symbol.Condition.Else(GetNewLineId()));
+                    break;
+                case "then":
+                    PushStatement(new Symbol.Condition.Then(GetNewLineId()));
+                    break;
+                default: {
+                    unit=null;
+                    command = new String();
                     for (int tmp_position = 0; tmp_position < text.length(); tmp_position++) {
-                        c = text.charAt(position);
+                        c = text.charAt(tmp_position);
                         if (c == ' ') {
                             paramter = text.substring(tmp_position + 1);
-                            unit=CommandCoverToUnit(command,paramter);
+                            unit = CommandCoverToUnit(command, paramter);
+                            /*
                             if(unit==null)
-                                throw new Exception(String.format("Cant parse command:%s",command));
+                                throw new Exception(String.format("Cant parse command:%s",command));*/
                             break;
                         } else {
-                            command += c;
+                            command += (char)c;
                         }
+                    }
+                    if (unit != null) {
+                        PushStatement(unit);
+                        break;
+                    }
+                    command = new String();
+                    //if(x+1)
+                    for (int tmp_position = 0; tmp_position < text.length(); tmp_position++) {
+                        c = text.charAt(tmp_position);
+                        if (c == '(') {
+                            paramter = text.substring(tmp_position);
+                            unit = CommandCoverToStatement(command, paramter);
+                            /*
+                            if(unit==null)
+                                throw new Exception(String.format("Cant parse command:%s",command));*/
+                            break;
+                        } else {
+                            command += (char)c;
+                        }
+                    }
+                    if(unit==null)
+                        throw new Exception("cant parse command :"+text);
+                    else {
+                        PushStatement(unit);
+                        break;
                     }
                 }
             }
         }
+        return null;//// TODO: 2016/10/31
+    }
 
-        return null;
+    //if(x+1)
+    Unit CommandCoverToStatement(String command,String paramter)throws Exception{
+        Statement statement=null;
+        Unit unit=null;
+        switch (command){
+            case "if":unit=(new Symbol.Condition.If(GetNewLineId(),paramter));break;
+        }
+        if(statement==null&&unit==null)
+            return null;
+        if(statement!=null)
+            return statement;
+        return unit;
     }
 
     /***/
-    Statement CommandCoverToUnit(String command,String paramter){
+    Unit CommandCoverToUnit(String command,String paramter)throws Exception{
+        Statement statement=null;
+        Unit unit=null;
         switch (command){
-            case "function":PushStatement(new Statement.Function.FunctionBody(GetNewLineId(),paramter));break;
-            case "if":PushStatement(new Symbol.Condition.If(GetNewLineId(),paramter));break;
-            case "call":PushStatement(new Statement.Call(GetNewLineId(),paramter));break;
+            case "function":statement=(new Statement.Function.FunctionBody(GetNewLineId(),paramter));break;
+            //case "if":unit=(new Symbol.Condition.If(GetNewLineId(),paramter));break;
+            case "call":statement=(new Statement.Call(GetNewLineId(),paramter));break;
+            case "return":statement=new Statement.Return(GetNewLineId(),paramter);break;
+            case "goto":statement=new Statement.Goto(GetNewLineId(),paramter);break;
         }
-        return null;
+        if(statement==null&&unit==null)
+            return null;
+        if(statement!=null)
+            return statement;
+        return unit;
     }
 
     /***预处理部分 Pre**/
-    private static boolean IsPreCompileCommand(String string){return string.charAt(0)=='#';}
+    private static boolean IsPreCompileCommand(String string){return string.isEmpty()?false:string.charAt(0)=='#';}
 
-    public abstract class ExecutorAction{
-        void onExecute(String param,Parser reference_parser){}
+    public abstract interface ExecutorAction{
+        void onExecute(String param,Parser reference_parser);
     }
 
     private HashMap<String,ExecutorAction> reflectionPreExecution=null;
