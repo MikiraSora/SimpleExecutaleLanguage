@@ -21,7 +21,7 @@ public class Test {
             }
         });
 
-        Executor executor=new Executor();
+        Executor executor=new Executor(new Calculator());
         executor.InitFromFile("D:\\test.txt");
     }
 }

@@ -1,5 +1,10 @@
+import sun.rmi.runtime.Log;
+
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Stack;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 /**
@@ -38,6 +43,7 @@ public class Parser {
             Call,
             Return,
             Goto,
+            Set,
             Unknown
         }
 
@@ -69,8 +75,29 @@ public class Parser {
         void Execute()throws Exception{throw new Exception("this statement haven't be executed.");}
 
         static class Function extends Statement{
+            int end_line=-1;
+
             private Function(){super();}
-            Function(int line,String body){super(line,body);}
+            Function(int line,String body)throws Exception{
+                super(line,body);
+                Matcher result = FunctionFormatRegex.matcher(statement_context);
+                result.find();
+                if (result.groupCount() != 2)
+                    throw new Exception("Cant parse function :"+statement_context);
+                //Log.ExceptionError( new Exception("Cannot parse function ：" + expression));
+                function_name = result.group(1);
+                request=new Calculator.Function.ParameterRequest(result.group(2));
+            }
+
+            private static Pattern FunctionFormatRegex = Pattern.compile("([a-zA-Z]\\w*)\\((.*)\\)");
+            String function_name=null;
+            Calculator.Function.ParameterRequest request=null;
+
+            String GetFunctionName(){
+                return function_name;
+            }
+
+            int GetParameterRequestCount(){return request.GetParamterRequestCount();}
 
             @Override
             public StatementType GetStatementType() {
@@ -90,7 +117,7 @@ public class Parser {
 
             static class FunctionBody extends Function{
                 private FunctionBody(){}
-                FunctionBody(int line,String body){super(line,body);}
+                FunctionBody(int line,String body)throws Exception{super(line,body);}
 
                 @Override
                 public FunctionType GetFunctionType() {
@@ -100,7 +127,7 @@ public class Parser {
 
             static class EndFcuntion extends Function{
                 private EndFcuntion(){}
-                EndFcuntion(int line){super(line,"");}
+                EndFcuntion(int line)throws Exception{super(line,"");}
 
                 @Override
                 public FunctionType GetFunctionType() {
@@ -116,6 +143,16 @@ public class Parser {
             @Override
             public StatementType GetStatementType() {
                 return StatementType.Call;
+            }
+        }
+
+        static class Set extends Statement{
+            private Set(){}
+            Set(int line,String name){super(line,name);}
+
+            @Override
+            public StatementType GetStatementType() {
+                return StatementType.Set;
             }
         }
 
@@ -167,6 +204,9 @@ public class Parser {
 
         /**Condition Defination*/
         public static class Condition extends Symbol{
+            int end_line=-1,else_line=-1;
+            If reference_if=null;
+
             private Condition(){}
             Condition(int line){super(line);}
 
@@ -230,6 +270,8 @@ public class Parser {
 
         /**Loop Defination*/
         static class Loop extends Symbol{
+            LoopBegin reference_loop=null;
+            int end_line=-1;
             private Loop(){}
             Loop(int line){super(line);}
 
@@ -250,6 +292,8 @@ public class Parser {
             public LoopType GetLoopType(){return LoopType.Unknown;}
 
             static class LoopBegin extends Loop{
+                //int end_line=-1;
+
                 private LoopBegin(){}
                 LoopBegin(int line){super(line);}
 
@@ -308,7 +352,7 @@ public class Parser {
     ArrayList<String> IncludeFileName=new ArrayList<>();
     /***Cache****/
     HashMap<String,Integer> LabelPositionCache=new HashMap<>();
-    HashMap<String,Integer> FunctionPositionCache=new HashMap<>();
+    HashMap<String, Statement.Function> FunctionTable=new HashMap<>();
 
     /***属性***/
     private HashMap<String,String> propherty=new HashMap<>();
@@ -498,5 +542,78 @@ public class Parser {
     }
 
     /**Context Parse**/
+    void FunctionRegister()throws Exception{
+        int position=-1;
+        Unit unit=null;
+        Stack<Statement.Function> function_stack=new Stack<>();//,else_stack=new Stack<>();
+        Stack<Symbol.Condition.If> if_stack=new Stack<>();
+        Stack<Symbol.Loop.LoopBegin> loop_stack=new Stack<>();
+        Statement.Function function=null;
+        while(true){
+            position++;
+            unit=StatementLine.get(position);
+            if(position>=StatementLine.size())
+                break;
+            if(unit.GetType()== Unit.UnitType.Statement) {
+                if (((Statement) unit).GetStatementType() == Statement.StatementType.Function){
+                    if (((Statement.Function) unit).GetFunctionType() == Statement.Function.FunctionType.Begin) {
+                        function_stack.push((Statement.Function) unit);
+                    }else if(((Statement.Function) unit).GetFunctionType() == Statement.Function.FunctionType.End){
+                        if(function_stack.isEmpty())
+                            throw new Exception("No more \"function\" head can be matched with \"endfunction\" label");
+                        if(function_stack.peek().end_line>=0)
+                            throw new Exception("duplicate \"endfcuntion\" in current function statement");
+                        function_stack.peek().end_line=position;
+                        function=function_stack.pop();
+                        FunctionTable.put(function.GetFunctionName(),function);
+                    }
+                }
+            }else if(unit.GetType()== Unit.UnitType.Symbol){
+                    if(((Symbol) unit).GetSymbolType() == Symbol.SymbolType.ConditionBranch){
+                        //Condition Branch
+                        if(((Symbol.Condition)unit).GetConditionType()== Symbol.Condition.ConditionType.Else){
+                            if(if_stack.empty())
+                                throw new Exception("No more \"if\" head can be matched with \"else\" label");
+                            if(if_stack.peek().else_line>=0)
+                                throw new Exception("duplicate \"else\" in current if branch");
+                            if_stack.peek().else_line=position;
+                        }else if (((Symbol.Condition)unit).GetConditionType()== Symbol.Condition.ConditionType.EndIf){
+                            if(if_stack.empty())
+                                throw new Exception("No more \"if\" head can be match with \"else\" label");
+                            if_stack.peek().end_line=position;
+                            if_stack.pop();
+                        }else if(((Symbol.Condition)unit).GetConditionType()== Symbol.Condition.ConditionType.If){
+                            if_stack.push((Symbol.Condition.If)unit);
+                        }
+                    }else if (((Symbol) unit).GetSymbolType() == Symbol.SymbolType.LoopBranch){
+                        if(((Symbol.Loop)unit).GetLoopType()== Symbol.Loop.LoopType.LoopBegin){
+                            loop_stack.push((Symbol.Loop.LoopBegin)unit);
+                        }else {
+                            if(loop_stack.isEmpty())
+                                throw new Exception("No more \"loop\" head can be matched with \"endloop\" label");
+                            if (((Symbol.Loop) unit).GetLoopType() == Symbol.Loop.LoopType.Endloop) {
+                                loop_stack.peek().end_line = position;
+                                loop_stack.pop();
+                            } else if (((Symbol.Loop) unit).GetLoopType() == Symbol.Loop.LoopType.Break) {
+                                if(((Symbol.Loop)unit).reference_loop!=null)
+                                    throw new Exception("duplicate \"begin_line\" in current loop branch");
+                                ((Symbol.Loop)unit).reference_loop=loop_stack.peek();
+                            } else if (((Symbol.Loop) unit).GetLoopType() == Symbol.Loop.LoopType.Continue) {
+                                if(((Symbol.Loop)unit).reference_loop!=null)
+                                    throw new Exception("duplicate \"begin_line\" in current loop branch");
+                                ((Symbol.Loop)unit).reference_loop=loop_stack.peek();
+                            } else if(((Symbol) unit).GetSymbolType() == Symbol.SymbolType.LoopBranch){
 
-}
+                            }else
+                                throw new Exception("unknown loop branch type");
+                        }
+                    }else if(((Symbol) unit).GetSymbolType() == Symbol.SymbolType.Label){
+                        //// TODO: 2016/11/1
+                    }else
+                        throw new Exception("unknown symbol type");
+                }else
+                    throw new Exception(String.format("unknown unit type %s",unit.GetType().toString()));
+            }
+            return;
+        }
+    }

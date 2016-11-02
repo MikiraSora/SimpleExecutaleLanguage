@@ -17,16 +17,18 @@ public class Loader {
         int c=0;
         String text=new String();
         while((c=reader.read())>=0){
-            if(c=='\t'||c=='\n')
+            if(c=='\t'||c=='\r')
                 continue;;
-            if(c=='\r'){
+            if(c=='\n'){
                 action.ReadLine(text);
                 text=new String();
-                reader.read();//skip \n
+                //reader.read();//skip \n
             }else{
                 text+=(char)c;
             }
         }
+        if(!text.isEmpty())
+            action.ReadLine(text);
     }
 
     static void LoadFromFile(String input_path,ReadLineAction action)throws Exception{LoadFromStream(new FileInputStream(input_path),action);}

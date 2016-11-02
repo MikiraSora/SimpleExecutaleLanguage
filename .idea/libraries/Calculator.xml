@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="Calculator">
+    <CLASSES>
+      <root url="file://H:/BaiduYunDownload/Calculator" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://H:/BaiduYunDownload/Calculator/LogSever/src" />
+      <root url="file://H:/BaiduYunDownload/Calculator/Log/src" />
+      <root url="file://H:/BaiduYunDownload/Calculator/src" />
+      <root url="file://H:/BaiduYunDownload/Calculator/untitled/src" />
+    </SOURCES>
+  </library>
+</component>
