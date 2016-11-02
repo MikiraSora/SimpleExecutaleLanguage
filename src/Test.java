@@ -3,6 +3,7 @@ import java.util.HashMap;
 /**
  * Created by MikiraSora on 2016/10/31.
  */
+/*
 public class Test {
     public static void main(String[] args)throws Exception{
         HashMap<String, Parser.ExecutorAction> preprocessMap=new HashMap<>();
@@ -24,4 +25,4 @@ public class Test {
         Executor executor=new Executor(new Calculator());
         executor.InitFromFile("D:\\test.txt");
     }
-}
+}*/

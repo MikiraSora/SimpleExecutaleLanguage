@@ -147,8 +147,21 @@ public class Parser {
         }
 
         static class Set extends Statement{
+            String variable_name=null,variable_value=null;
             private Set(){}
-            Set(int line,String name){super(line,name);}
+            Set(int line,String name) {
+                super(line, name);
+                char c;
+                for (int position = 0; position < statement_context.length() - 1; position++) {
+                    c = statement_context.charAt(position);
+                    if (c == '=') {
+                        variable_value = statement_context.substring(position + 1);
+                        break;
+                    } else {
+                        variable_name += c;
+                    }
+                }
+            }
 
             @Override
             public StatementType GetStatementType() {

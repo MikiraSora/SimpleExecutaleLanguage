@@ -1,5 +1,6 @@
 import java.beans.Expression;
 import java.io.ObjectInputStream;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -57,8 +58,11 @@ public class Executor {
 
     /**执行区**/
     public String ExecuteFunction(String name, ArrayList<Calculator.Expression> paramster)throws Exception{
-        if(!parser.FunctionTable.containsKey(name))
-            throw new Exception( name + " isnt exsit!");
+        if(!parser.FunctionTable.containsKey(name)){
+            if(!functionIncludeNode.containsKey(name))
+                throw new Exception( name + " isnt exsit!");
+            return functionIncludeNode.get(name).executor.ExecuteFunction(name,paramster);
+        }
         Parser.Statement.Function function=parser.FunctionTable.get(name);
         if(paramster.size()!=function.GetParameterRequestCount())
             throw new Exception("not enough paramester to take");
@@ -96,7 +100,7 @@ public class Executor {
                                 break;
                             }
                             case Set:{
-                                //// TODO: 2016/11/2
+                                SetVariableValue(((Parser.Statement.Set)unit).variable_name,((Parser.Statement.Set)unit).variable_value);
                                 break;
                             }
                             case Goto:{
@@ -193,6 +197,62 @@ public class Executor {
     * */
     //// TODO: 2016/11/2 变量缓存机制
     public Calculator.Variable GetVariable(String name)throws Exception{
-           return null;//// TODO: 2016/11/2
+        if(isTmpVariable(name))
+               return TmpVariable.get(name).peek();
+        try{
+            return GetCalculator().GetVariable(name);
+        }catch (Exception e){
+            return null;
+        }
+    }
+
+    public void SetVariableValue(String name,String Value)throws Exception{
+        Calculator.Variable variable=GetVariable(name);
+
+        if(variable==null){
+            RegisterTmpVariable(name);
+            TmpVariable.get(name).push(new Calculator.Variable(name,Value,GetCalculator()));
+            return;
+        }
+
+        if(variable.variable_type== Calculator.Variable.VariableType.ExpressionVariable){
+            variable.rawText=Value;
+        }else{
+            variable.rawText=GetCalculator().Solve(Value);
+        }
+    }
+
+    public void RegisterTmpVariable(String name){
+        recordTmpVariable.peek().add(name);
+        TmpVariable.put(name,new Stack<>());
+    }
+
+    /**
+     *  检查是否为本地(local)变量
+     * */
+    public boolean isTmpVariable(String variable_name){return TmpVariable.containsKey(variable_name);}
+
+
+    /**/
+    HashMap<String,ChildExecutorNode> executorNodeHashMap=new HashMap<>();
+    HashMap<String,ChildExecutorNode> functionIncludeNode=new HashMap<>();
+
+    public void AddChildExecutor(String input_file)throws Exception{
+        ChildExecutorNode node=new ChildExecutorNode(input_file,GetCalculator());
+        for(String function:node.callableFunctionName)
+            functionIncludeNode.put(function,node);
+        executorNodeHashMap.put(node.include_name,node);
+    }
+
+    private class ChildExecutorNode{
+        private ChildExecutorNode(){}
+        ChildExecutorNode(String include_name,Calculator calculator)throws Exception{
+            executor=new Executor(calculator);
+            executor.InitFromFile(include_name);
+            callableFunctionName=executor.GetAllFunctionName();
+        }
+        String include_name;
+        ArrayList<String> callableFunctionName;
+        Executor executor;
     }
 }
