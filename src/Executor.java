@@ -1,10 +1,7 @@
 import java.beans.Expression;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * Created by MikiraSora on 2016/10/31.
@@ -29,8 +26,14 @@ public class Executor {
         });
         parser.Parse(arrayList);
         parser.FunctionRegister();
+
+        if(parser.propherty.containsKey("package_name"))
         return;
     }
+
+    public String GetPackageName(){return parser.propherty.get("package_name");}
+
+    public String GetPackageVersion(){return parser.propherty.get("packaget_version");}
 
     public int GetFunctionCount(){
         return parser.FunctionTable.size();
@@ -255,4 +258,27 @@ public class Executor {
         ArrayList<String> callableFunctionName;
         Executor executor;
     }
+
+    /*加载和卸载*/
+    private int reference_count=0;
+    public void Link(){
+        reference_count++;
+    }
+
+    public void Drop(){
+        reference_count--;
+        if(!IsNonReferenced())
+            return;
+        ArrayList<ChildExecutorNode> childExecutorNodes=new ArrayList<>(functionIncludeNode.values());
+        ChildExecutorNode node=null;
+        for(int i=0;i<childExecutorNodes.size();i++){
+            node=childExecutorNodes.get(i);
+            node.executor.Drop();
+            if(node.executor.IsNonReferenced())
+                functionIncludeNode.remove(node.include_name);
+
+        }
+    }
+
+    public boolean IsNonReferenced(){return reference_count<=0;}
 }

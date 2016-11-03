@@ -1,5 +1,6 @@
 import sun.rmi.runtime.Log;
 
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Stack;
@@ -91,7 +92,7 @@ public class Parser {
 
             private static Pattern FunctionFormatRegex = Pattern.compile("([a-zA-Z]\\w*)\\((.*)\\)");
             String function_name=null;
-            Calculator.Function.ParameterRequest request=null;
+            public Calculator.Function.ParameterRequest request=null;
 
             String GetFunctionName(){
                 return function_name;
@@ -368,7 +369,7 @@ public class Parser {
     HashMap<String, Statement.Function> FunctionTable=new HashMap<>();
 
     /***属性***/
-    private HashMap<String,String> propherty=new HashMap<>();
+    public HashMap<String,String> propherty=new HashMap<>();
     public void Set(String key,String value){propherty.put(key,value);}
     public String Get(String key){return propherty.get(key);}
     /*
