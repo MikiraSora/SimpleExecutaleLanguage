@@ -10,14 +10,47 @@ public class Executor {
     private Calculator calculator=null;
     Calculator GetCalculator(){return calculator==null?calculator=new Calculator():calculator;}
 
+    private static HashMap<String, Parser.ExecutorAction> preprocessActionMap=null;
+    static {
+        preprocessActionMap=new HashMap<>();
+        preprocessActionMap.put("package", new Parser.ExecutorAction() {
+            @Override
+            public void onExecute(String param, Parser reference_parser) {
+                reference_parser.Set("package_name",param);
+            }
+        });
+        preprocessActionMap.put("version", new Parser.ExecutorAction() {
+            @Override
+            public void onExecute(String param, Parser reference_parser) {
+                reference_parser.Set("package_version",param);
+            }
+        });
+        preprocessActionMap.put("include", new Parser.ExecutorAction() {
+            @Override
+            public void onExecute(String param, Parser reference_parser) {
+                try {
+                    reference_parser.GetExecutor().AddChildExecutor(param.substring(1,param.length()-2));
+                }catch (Exception e){
+
+                }
+            }
+        });
+        preprocessActionMap.put("define", new Parser.ExecutorAction() {
+            @Override
+            public void onExecute(String param, Parser reference_parser) {
+                //// TODO: 2016/11/4
+            }
+        });
+
+    }
+
     private Executor(){}
     Executor(Calculator calculator){this.calculator=calculator;}
 
-    Parser parser=new Parser();
+    Parser parser=new Parser(this);
 
     public void InitFromFile(String input_file)throws Exception{
         ArrayList<String> arrayList=new ArrayList<>();
-        //Loader loader=new Loader();
         Loader.LoadFromFile(input_file,new Loader.ReadLineAction(){
             @Override
             public void ReadLine(String string) {
@@ -27,17 +60,27 @@ public class Executor {
         parser.Parse(arrayList);
         parser.FunctionRegister();
 
-        if(parser.propherty.containsKey("package_name"))
+        if(parser.propherty.containsKey("package_name")&&parser.propherty.containsKey("package_version"))
+            throw new Exception(String.format("the file from \"%s\" is missed pre-propherty \"#package xxx\" or \"#version xxx\"",input_file));
         return;
     }
 
     public String GetPackageName(){return parser.propherty.get("package_name");}
 
-    public String GetPackageVersion(){return parser.propherty.get("packaget_version");}
+    public String GetPackageVersion(){return parser.propherty.get("package_version");}
 
-    public int GetFunctionCount(){
+    public int GetCurrentExecutorFunctionCount(){
         return parser.FunctionTable.size();
         }
+
+    public int GetAllExecutorFunctionCount(){
+        int count=0;
+        count=GetCurrentExecutorFunctionCount();
+        for(ChildExecutorNode node:functionIncludeNode.values()){
+            count+=node.executor.GetAllExecutorFunctionCount();
+        }
+        return count;
+    }
 
     public ArrayList<String> GetAllFunctionName(){
         ArrayList<String> allFunction=new ArrayList<>();
@@ -235,18 +278,21 @@ public class Executor {
      * */
     public boolean isTmpVariable(String variable_name){return TmpVariable.containsKey(variable_name);}
 
-
-    /**/
-    HashMap<String,ChildExecutorNode> executorNodeHashMap=new HashMap<>();
-    HashMap<String,ChildExecutorNode> functionIncludeNode=new HashMap<>();
+    ArrayList<Executor> recordIncludeExecutor=new ArrayList<>();
 
     public void AddChildExecutor(String input_file)throws Exception{
+        /*
         ChildExecutorNode node=new ChildExecutorNode(input_file,GetCalculator());
         for(String function:node.callableFunctionName)
-            functionIncludeNode.put(function,node);
+            GetCalculator().GetScriptManager().ReferenceAdd(node.executor.GetPackageName(),node.executor);
         executorNodeHashMap.put(node.include_name,node);
+        */
+        Executor executor=new Executor(GetCalculator());
+        executor.InitFromFile(input_file);
+        recordIncludeExecutor.add(executor);
+        GetCalculator().GetScriptManager().ReferenceAdd(executor.GetPackageName(),executor);
     }
-
+/*
     private class ChildExecutorNode{
         private ChildExecutorNode(){}
         ChildExecutorNode(String include_name,Calculator calculator)throws Exception{
@@ -258,7 +304,7 @@ public class Executor {
         ArrayList<String> callableFunctionName;
         Executor executor;
     }
-
+*/
     /*加载和卸载*/
     private int reference_count=0;
     public void Link(){
@@ -269,14 +315,13 @@ public class Executor {
         reference_count--;
         if(!IsNonReferenced())
             return;
-        ArrayList<ChildExecutorNode> childExecutorNodes=new ArrayList<>(functionIncludeNode.values());
+        //ArrayList<ChildExecutorNode> childExecutorNodes=new ArrayList<>(functionIncludeNode.values());
         ChildExecutorNode node=null;
         for(int i=0;i<childExecutorNodes.size();i++){
             node=childExecutorNodes.get(i);
             node.executor.Drop();
             if(node.executor.IsNonReferenced())
                 functionIncludeNode.remove(node.include_name);
-
         }
     }
 

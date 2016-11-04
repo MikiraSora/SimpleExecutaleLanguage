@@ -1,3 +1,4 @@
+import com.sun.istack.internal.NotNull;
 import sun.rmi.runtime.Log;
 
 import java.security.PublicKey;
@@ -370,6 +371,13 @@ public class Parser {
 
     /***属性***/
     public HashMap<String,String> propherty=new HashMap<>();
+
+    private Parser(){}
+    private Executor executor=null;
+    public Executor GetExecutor(){return executor;}
+
+    Parser(@NotNull Executor executor){this.executor=executor;}
+
     public void Set(String key,String value){propherty.put(key,value);}
     public String Get(String key){return propherty.get(key);}
     /*
