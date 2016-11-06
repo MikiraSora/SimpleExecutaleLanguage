@@ -79,8 +79,10 @@ public class Parser {
         static class Function extends Statement{
             int end_line=-1;
 
+            Parser reference_parser=null;
+
             private Function(){super();}
-            Function(int line,String body)throws Exception{
+            Function(int line,String body,Parser parser)throws Exception{
                 super(line,body);
                 Matcher result = FunctionFormatRegex.matcher(statement_context);
                 result.find();
@@ -89,6 +91,7 @@ public class Parser {
                 //Log.ExceptionError( new Exception("Cannot parse function ：" + expression));
                 function_name = result.group(1);
                 request=new Calculator.Function.ParameterRequest(result.group(2));
+                reference_parser=parser;
             }
 
             private static Pattern FunctionFormatRegex = Pattern.compile("([a-zA-Z]\\w*)\\((.*)\\)");
@@ -119,7 +122,7 @@ public class Parser {
 
             static class FunctionBody extends Function{
                 private FunctionBody(){}
-                FunctionBody(int line,String body)throws Exception{super(line,body);}
+                FunctionBody(int line,String body,Parser parser)throws Exception{super(line,body,parser);}
 
                 @Override
                 public FunctionType GetFunctionType() {
@@ -129,7 +132,7 @@ public class Parser {
 
             static class EndFcuntion extends Function{
                 private EndFcuntion(){}
-                EndFcuntion(int line)throws Exception{super(line,"");}
+                EndFcuntion(int line,Parser parser)throws Exception{super(line,"",parser);}
 
                 @Override
                 public FunctionType GetFunctionType() {
@@ -431,7 +434,7 @@ public class Parser {
 
             switch (text.trim()) {
                 case "endfunction":
-                    PushStatement(new Statement.Function.EndFcuntion(GetNewLineId()));
+                    PushStatement(new Statement.Function.EndFcuntion(GetNewLineId(),this));
                     break;
                 case "endloop":
                     PushStatement(new Symbol.Loop.Endloop(GetNewLineId()));
@@ -520,7 +523,7 @@ public class Parser {
         Statement statement=null;
         Unit unit=null;
         switch (command){
-            case "function":statement=(new Statement.Function.FunctionBody(GetNewLineId(),paramter));break;
+            case "function":statement=(new Statement.Function.FunctionBody(GetNewLineId(),paramter,this));break;
             //case "if":unit=(new Symbol.Condition.If(GetNewLineId(),paramter));break;
             case "call":statement=(new Statement.Call(GetNewLineId(),paramter));break;
             case "return":statement=new Statement.Return(GetNewLineId(),paramter);break;

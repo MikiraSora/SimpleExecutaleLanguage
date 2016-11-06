@@ -76,8 +76,8 @@ public class Executor {
     public int GetAllExecutorFunctionCount(){
         int count=0;
         count=GetCurrentExecutorFunctionCount();
-        for(ChildExecutorNode node:functionIncludeNode.values()){
-            count+=node.executor.GetAllExecutorFunctionCount();
+        for(Executor executor:recordIncludeExecutor){
+            count+=executor.GetAllExecutorFunctionCount();
         }
         return count;
     }
@@ -105,9 +105,9 @@ public class Executor {
     /**执行区**/
     public String ExecuteFunction(String name, ArrayList<Calculator.Expression> paramster)throws Exception{
         if(!parser.FunctionTable.containsKey(name)){
-            if(!functionIncludeNode.containsKey(name))
-                throw new Exception( name + " isnt exsit!");
-            return functionIncludeNode.get(name).executor.ExecuteFunction(name,paramster);
+            for(Executor executor:recordIncludeExecutor)
+                if(executor.parser.FunctionTable.containsKey(name))
+                    return executor.ExecuteFunction(name,paramster);
         }
         Parser.Statement.Function function=parser.FunctionTable.get(name);
         if(paramster.size()!=function.GetParameterRequestCount())
@@ -140,7 +140,6 @@ public class Executor {
                             case Return:{
                                 throw new ReturnSignal(((Parser.Statement)unit).statement_context);
                             }
-
                             case Call:{
                                 GetCalculator().Solve(((Parser.Statement)unit).statement_context);
                                 break;
@@ -290,7 +289,7 @@ public class Executor {
         Executor executor=new Executor(GetCalculator());
         executor.InitFromFile(input_file);
         recordIncludeExecutor.add(executor);
-        GetCalculator().GetScriptManager().ReferenceAdd(executor.GetPackageName(),executor);
+        GetCalculator().GetScriptManager().LoadScript(executor); //.ReferenceAdd(executor.GetPackageName(),executor);
     }
 /*
     private class ChildExecutorNode{
@@ -313,16 +312,15 @@ public class Executor {
 
     public void Drop(){
         reference_count--;
+        /*
         if(!IsNonReferenced())
-            return;
-        //ArrayList<ChildExecutorNode> childExecutorNodes=new ArrayList<>(functionIncludeNode.values());
-        ChildExecutorNode node=null;
-        for(int i=0;i<childExecutorNodes.size();i++){
-            node=childExecutorNodes.get(i);
-            node.executor.Drop();
-            if(node.executor.IsNonReferenced())
-                functionIncludeNode.remove(node.include_name);
+        {
+            ScriptManager manager=this.GetCalculator().GetScriptManager();
+            if(manager.)
         }
+        //ArrayList<ChildExecutorNode> childExecutorNodes=new ArrayList<>(functionIncludeNode.values());
+        for(Executor executor:recordIncludeExecutor)
+            executor.Drop();*/
     }
 
     public boolean IsNonReferenced(){return reference_count<=0;}
