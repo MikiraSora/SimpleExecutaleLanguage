@@ -38,7 +38,7 @@ public class Executor {
         preprocessActionMap.put("define", new Parser.ExecutorAction() {
             @Override
             public void onExecute(String param, Parser reference_parser) {
-                //// TODO: 2016/11/4
+                //// TODO: 2016/11/4 实现define
             }
         });
 
@@ -124,7 +124,7 @@ public class Executor {
             while(true){
                 position++;
                 if(position>=parser.StatementLine.size())
-                    throw new Exception();//// TODO: 2016/11/2
+                    throw new Exception("Current execute command is out of function range");
                 switch (unit.GetType()){
                     case Statement:{
                         switch (((Parser.Statement)unit).GetStatementType()){
@@ -191,8 +191,6 @@ public class Executor {
                 }
             }
         }catch (ReturnSignal e){return GetVariable(e.signal_value).Solve();}catch (Exception e){throw e;}finally {PopTmpVariable();}
-        //
-        //return null;//// TODO: 2016/11/1
     }
 
 
