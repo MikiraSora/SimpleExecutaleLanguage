@@ -84,6 +84,8 @@ public class Parser {
             private Function(){super();}
             Function(int line,String body,Parser parser)throws Exception{
                 super(line,body);
+                if(body==null)
+                    return;
                 Matcher result = FunctionFormatRegex.matcher(statement_context);
                 result.find();
                 if (result.groupCount() != 2)
@@ -132,7 +134,7 @@ public class Parser {
 
             static class EndFcuntion extends Function{
                 private EndFcuntion(){}
-                EndFcuntion(int line,Parser parser)throws Exception{super(line,"",parser);}
+                EndFcuntion(int line,Parser parser)throws Exception{super(line,null,parser);}
 
                 @Override
                 public FunctionType GetFunctionType() {
@@ -427,6 +429,7 @@ public class Parser {
             //预处理
             if (IsPreCompileCommand(text)) {
                 ExecutePreCommand(text);
+                continue;
             }
             //转换
             //Label
@@ -525,6 +528,7 @@ public class Parser {
         switch (command){
             case "function":statement=(new Statement.Function.FunctionBody(GetNewLineId(),paramter,this));break;
             //case "if":unit=(new Symbol.Condition.If(GetNewLineId(),paramter));break;
+            case "set":statement=(new Statement.Set(GetNewLineId(),paramter));break;
             case "call":statement=(new Statement.Call(GetNewLineId(),paramter));break;
             case "return":statement=new Statement.Return(GetNewLineId(),paramter);break;
             case "goto":statement=new Statement.Goto(GetNewLineId(),paramter);break;
@@ -562,7 +566,7 @@ public class Parser {
             position++;
         }
         param = string.substring(position + 1);
-        if(!reflectionPreExecution.containsKey(command))
+        if(reflectionPreExecution.containsKey(command))
             reflectionPreExecution.get(command).onExecute(param,this);
     }
 

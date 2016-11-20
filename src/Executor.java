@@ -57,10 +57,11 @@ public class Executor {
                 arrayList.add(string);
             }
         });
+        parser.SetPreCompileExecutors(preprocessActionMap);
         parser.Parse(arrayList);
         parser.FunctionRegister();
 
-        if(parser.propherty.containsKey("package_name")&&parser.propherty.containsKey("package_version"))
+        if(!(parser.propherty.containsKey("package_name")&&parser.propherty.containsKey("package_version")))
             throw new Exception(String.format("the file from \"%s\" is missed pre-propherty \"#package xxx\" or \"#version xxx\"",input_file));
         return;
     }
@@ -116,8 +117,9 @@ public class Executor {
         for(Calculator.Expression expr:paramster)
             if(expr.GetType()==Calculator.Expression.ExpressionType.Variable)
                 param_set.put(((Calculator.Variable)expr).GetName(),(Calculator.Variable)expr);
-        //开始执行
+        //参数入栈保存
         PushTmpVariable(param_set);
+        //开始执行
         Parser.Unit unit=null;
         try{
             int position=function.line;
@@ -125,6 +127,7 @@ public class Executor {
                 position++;
                 if(position>=parser.StatementLine.size())
                     throw new Exception("Current execute command is out of function range");
+                unit=parser.StatementLine.get(position);
                 switch (unit.GetType()){
                     case Statement:{
                         switch (((Parser.Statement)unit).GetStatementType()){
@@ -239,14 +242,10 @@ public class Executor {
     /---
     * */
     //// TODO: 2016/11/2 变量缓存机制
-    public Calculator.Variable GetVariable(String name)throws Exception{
+    public Calculator.Variable GetVariable(String name){
         if(isTmpVariable(name))
                return TmpVariable.get(name).peek();
-        try{
-            return GetCalculator().GetVariable(name);
-        }catch (Exception e){
-            return null;
-        }
+        return null;
     }
 
     public void SetVariableValue(String name,String Value)throws Exception{
