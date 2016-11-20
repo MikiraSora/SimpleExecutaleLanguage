@@ -159,6 +159,7 @@ public class Parser {
             Set(int line,String name) {
                 super(line, name);
                 char c;
+                variable_name=new String();
                 for (int position = 0; position < statement_context.length() - 1; position++) {
                     c = statement_context.charAt(position);
                     if (c == '=') {

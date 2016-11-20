@@ -29,7 +29,7 @@ public class Executor {
             @Override
             public void onExecute(String param, Parser reference_parser) {
                 try {
-                    reference_parser.GetExecutor().AddChildExecutor(param.substring(1,param.length()-2));
+                    reference_parser.GetExecutor().AddChildExecutor(param);
                 }catch (Exception e){
 
                 }
@@ -122,6 +122,7 @@ public class Executor {
         //开始执行
         Parser.Unit unit=null;
         try{
+            GetCalculator().GetScriptManager().RecordExecutingExecutor(this);
             int position=function.line;
             while(true){
                 position++;
@@ -193,7 +194,10 @@ public class Executor {
                     continue;
                 }
             }
-        }catch (ReturnSignal e){return GetVariable(e.signal_value).Solve();}catch (Exception e){throw e;}finally {PopTmpVariable();}
+        }catch (ReturnSignal e){return GetVariable(e.signal_value).Solve();}catch (Exception e){throw e;}finally {
+            PopTmpVariable();
+            GetCalculator().GetScriptManager().RecoveredExecutingExecutor();
+        }
     }
 
 
@@ -257,7 +261,7 @@ public class Executor {
             return;
         }
 
-        if(variable.variable_type== Calculator.Variable.VariableType.ExpressionVariable){
+        if(variable.variable_type!= Calculator.Variable.VariableType.ExpressionVariable){
             variable.rawText=Value;
         }else{
             variable.rawText=GetCalculator().Solve(Value);
