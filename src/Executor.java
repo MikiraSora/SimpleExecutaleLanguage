@@ -222,7 +222,7 @@ public class Executor {
                     continue;
                 }
             }
-        }catch (ReturnSignal e){return GetVariable(e.signal_value).Solve();}catch (Exception e){throw e;}finally {
+        }catch (ReturnSignal e){return /*GetVariable(e.signal_value).Solve()*/GetCalculator().Solve(e.signal_value);}catch (Exception e){throw e;}finally {
             PopTmpVariable();
             GetCalculator().GetScriptManager().RecoveredExecutingExecutor();
         }
