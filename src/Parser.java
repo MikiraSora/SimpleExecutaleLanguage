@@ -623,6 +623,7 @@ public class Parser {
                                 throw new Exception("No more \"loop\" head can be matched with \"endloop\" label");
                             if (((Symbol.Loop) unit).GetLoopType() == Symbol.Loop.LoopType.Endloop) {
                                 loop_stack.peek().end_line = position;
+                                ((Symbol.Loop)unit).reference_loop=loop_stack.peek();
                                 loop_stack.pop();
                             } else if (((Symbol.Loop) unit).GetLoopType() == Symbol.Loop.LoopType.Break) {
                                 if(((Symbol.Loop)unit).reference_loop!=null)

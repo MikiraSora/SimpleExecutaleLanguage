@@ -29,9 +29,14 @@ public class Executor {
             @Override
             public void onExecute(String param, Parser reference_parser) {
                 try {
+                    if(IsAbsolutePath(param))
+                        if(param.length()<3)
+                            throw new Exception();
+                        else
+                            param=GetBackFolderPath(reference_parser.GetExecutor().GetIncludeFilePath())+param.substring(2);
                     reference_parser.GetExecutor().AddChildExecutor(param);
                 }catch (Exception e){
-
+                    Log.Error(String.format("cant open file %s",param));
                 }
             }
         });
@@ -47,6 +52,26 @@ public class Executor {
     private Executor(){}
     Executor(Calculator calculator){this.calculator=calculator;}
 
+    private String IncludeFilePath="";
+    public String GetIncludeFilePath(){return IncludeFilePath;}
+
+    static boolean IsAbsolutePath(String path){
+        if(path.isEmpty())
+            return false;
+        if(path.charAt(0)=='.'&&path.charAt(1)=='/')
+            return true;
+        return false;
+    }
+
+    static String GetBackFolderPath(String path){
+        if(path.contains("\\")){
+            for (int i = path.length()-2; i >= 0; i--)
+                if (path.charAt(i) == '\\')
+                    return path.substring(0, i+1);
+        }
+        return "";
+    }
+
     Parser parser=new Parser(this);
 
     public void InitFromFile(String input_file)throws Exception{
@@ -57,6 +82,7 @@ public class Executor {
                 arrayList.add(string);
             }
         });
+        IncludeFilePath=input_file;
         parser.SetPreCompileExecutors(preprocessActionMap);
         parser.Parse(arrayList);
         parser.FunctionRegister();
@@ -139,7 +165,9 @@ public class Executor {
                                         throw new EndfunctionSignal();
                                     throw new Exception("Different function end.");
                                 }
+
                                 throw new Exception("Miaomiao?");
+
                             }
                             case Return:{
                                 throw new ReturnSignal(((Parser.Statement)unit).statement_context);
@@ -166,7 +194,7 @@ public class Executor {
                                         case If:{
                                             BooleanCaculator booleanCaculator=new BooleanCaculator(GetCalculator());
                                             if(!booleanCaculator.Solve(((Parser.Symbol.Condition.If)unit).condition)){
-                                                position=((Parser.Symbol.Condition.If)unit).else_line;
+                                                position=((Parser.Symbol.Condition.If)unit).else_line<0?((Parser.Symbol.Condition.If)unit).end_line:((Parser.Symbol.Condition.If)unit).else_line;
                                             }
                                             break;
                                         }
@@ -181,7 +209,7 @@ public class Executor {
                                         break;
 
                                     case Break:
-                                        position=((Parser.Symbol.Loop)unit).end_line;
+                                        position=((Parser.Symbol.Loop)unit).reference_loop.end_line;
                                         break;
                                 }
                                 break;
