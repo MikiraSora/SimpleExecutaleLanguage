@@ -289,11 +289,13 @@ public class Executor {
             return;
         }
 
+        /*//暂时不用
         if(variable.variable_type!= Calculator.Variable.VariableType.ExpressionVariable){
             variable.rawText=Value;
         }else{
             variable.rawText=GetCalculator().Solve(Value);
-        }
+        }*/
+        variable.rawText=GetCalculator().Solve(Value);
     }
 
     public void RegisterTmpVariable(String name){
