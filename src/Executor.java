@@ -173,7 +173,7 @@ public class Executor {
                                 throw new ReturnSignal(((Parser.Statement)unit).statement_context);
                             }
                             case Call:{
-                                GetCalculator().Solve(((Parser.Statement)unit).statement_context);
+                                GetCalculator().ScriptCallExecute(((Parser.Statement)unit).statement_context);
                                 break;
                             }
                             case Set:{
@@ -222,7 +222,7 @@ public class Executor {
                     continue;
                 }
             }
-        }catch (ReturnSignal e){return /*GetVariable(e.signal_value).Solve()*/GetCalculator().Solve(e.signal_value);}catch (Exception e){throw e;}finally {
+        }catch (ReturnSignal e){return GetCalculator().Solve(e.signal_value);}catch (Exception e){throw e;}finally {
             PopTmpVariable();
             GetCalculator().GetScriptManager().RecoveredExecutingExecutor();
         }
@@ -285,16 +285,10 @@ public class Executor {
 
         if(variable==null){
             RegisterTmpVariable(name);
-            TmpVariable.get(name).push(new Calculator.Variable(name,Value,GetCalculator()));
+            TmpVariable.get(name).push(new Calculator.Variable(name,GetCalculator().Solve(Value),GetCalculator()));
             return;
         }
 
-        /*//暂时不用
-        if(variable.variable_type!= Calculator.Variable.VariableType.ExpressionVariable){
-            variable.rawText=Value;
-        }else{
-            variable.rawText=GetCalculator().Solve(Value);
-        }*/
         variable.rawText=GetCalculator().Solve(Value);
     }
 
@@ -337,6 +331,9 @@ public class Executor {
 */
     /*加载和卸载*/
     private int reference_count=0;
+
+    public int GetReferenceCount(){return reference_count;}
+
     public void Link(){
         reference_count++;
     }
