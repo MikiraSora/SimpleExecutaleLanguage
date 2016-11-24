@@ -13,6 +13,26 @@ import java.util.regex.Pattern;
  * Created by MikiraSora on 2016/10/31.
  */
 public class Parser {
+
+    class SynatxErrorException extends Exception{
+        private SynatxErrorException(){}
+
+        int line;
+        String cause;
+        Executor executor;
+
+        SynatxErrorException(int line,String cause,@NotNull Executor executor){
+            this.line=line;
+            this.cause=cause;
+            this.executor=executor;
+        }
+
+        @Override
+        public String getMessage(){
+            return String.format("SynatxError %s,line %d:%s",executor.GetPackageName(),line,cause);
+        }
+    }
+
     /*片元 定义区*/
     static class Unit{
         enum UnitType{
@@ -429,7 +449,7 @@ public class Parser {
 
             //预处理
             if (IsPreCompileCommand(text)) {
-                ExecutePreCommand(text);
+                ExecutePreCommand(position,text);
                 continue;
             }
             //转换
@@ -497,7 +517,7 @@ public class Parser {
                         }
                     }
                     if(unit==null)
-                        throw new Exception("cant parse command :"+text);
+                        throw new SynatxErrorException(position,"cant parse command :"+text,GetExecutor());
                     else {
                         PushStatement(unit);
                         break;
@@ -552,14 +572,14 @@ public class Parser {
 
     public void SetPreCompileExecutors(HashMap<String,ExecutorAction> ExecutorActionHashMap){reflectionPreExecution=ExecutorActionHashMap;}
 
-    private void ExecutePreCommand(String string)throws Exception{
+    private void ExecutePreCommand(int line,String string)throws Exception{
         if(reflectionPreExecution==null)
             return;
         int position=1,c=0;
         String command=new String(),param=new String();
         while(true){
             if(position>=string.length())
-                throw new Exception("Cant parse preCompile command: "+string);
+                throw new SynatxErrorException(line,"Cant parse preCompile command: "+string,GetExecutor());
             c=string.charAt(position);
             if(c==' ')
                 break;
@@ -590,9 +610,9 @@ public class Parser {
                         function_stack.push((Statement.Function) unit);
                     }else if(((Statement.Function) unit).GetFunctionType() == Statement.Function.FunctionType.End){
                         if(function_stack.isEmpty())
-                            throw new Exception("No more \"function\" head can be matched with \"endfunction\" label");
+                            throw new SynatxErrorException(position,("No more \"function\" head can be matched with \"endfunction\" label"),GetExecutor());
                         if(function_stack.peek().end_line>=0)
-                            throw new Exception("duplicate \"endfcuntion\" in current function statement");
+                            throw new SynatxErrorException(position,("duplicate \"endfcuntion\" in current function statement"),GetExecutor());
                         function_stack.peek().end_line=position;
                         function=function_stack.pop();
                         FunctionTable.put(function.GetFunctionName(),function);
@@ -603,13 +623,13 @@ public class Parser {
                         //Condition Branch
                         if(((Symbol.Condition)unit).GetConditionType()== Symbol.Condition.ConditionType.Else){
                             if(if_stack.empty())
-                                throw new Exception("No more \"if\" head can be matched with \"else\" label");
+                                throw new SynatxErrorException(position,("No more \"if\" head can be matched with \"else\" label"),GetExecutor());
                             if(if_stack.peek().else_line>=0)
-                                throw new Exception("duplicate \"else\" in current if branch");
+                                throw new SynatxErrorException(position,("duplicate \"else\" in current if branch"),GetExecutor());
                             if_stack.peek().else_line=position;
                         }else if (((Symbol.Condition)unit).GetConditionType()== Symbol.Condition.ConditionType.EndIf){
                             if(if_stack.empty())
-                                throw new Exception("No more \"if\" head can be match with \"else\" label");
+                                throw new SynatxErrorException(position,("No more \"if\" head can be match with \"else\" label"),GetExecutor());
                             if_stack.peek().end_line=position;
                             if_stack.pop();
                         }else if(((Symbol.Condition)unit).GetConditionType()== Symbol.Condition.ConditionType.If){
@@ -620,30 +640,30 @@ public class Parser {
                             loop_stack.push((Symbol.Loop.LoopBegin)unit);
                         }else {
                             if(loop_stack.isEmpty())
-                                throw new Exception("No more \"loop\" head can be matched with \"endloop\" label");
+                                throw new SynatxErrorException(position,("No more \"loop\" head can be matched with \"endloop\" label"),GetExecutor());
                             if (((Symbol.Loop) unit).GetLoopType() == Symbol.Loop.LoopType.Endloop) {
                                 loop_stack.peek().end_line = position;
                                 ((Symbol.Loop)unit).reference_loop=loop_stack.peek();
                                 loop_stack.pop();
                             } else if (((Symbol.Loop) unit).GetLoopType() == Symbol.Loop.LoopType.Break) {
                                 if(((Symbol.Loop)unit).reference_loop!=null)
-                                    throw new Exception("duplicate \"begin_line\" in current loop branch");
+                                    throw new SynatxErrorException(position,("duplicate \"begin_line\" in current loop branch"),GetExecutor());
                                 ((Symbol.Loop)unit).reference_loop=loop_stack.peek();
                             } else if (((Symbol.Loop) unit).GetLoopType() == Symbol.Loop.LoopType.Continue) {
                                 if(((Symbol.Loop)unit).reference_loop!=null)
-                                    throw new Exception("duplicate \"begin_line\" in current loop branch");
+                                    throw new SynatxErrorException(position,("duplicate \"begin_line\" in current loop branch"),GetExecutor());
                                 ((Symbol.Loop)unit).reference_loop=loop_stack.peek();
                             } else if(((Symbol) unit).GetSymbolType() == Symbol.SymbolType.LoopBranch){
 
                             }else
-                                throw new Exception("unknown loop branch type");
+                                throw new SynatxErrorException(position,("unknown loop branch type"),GetExecutor());
                         }
                     }else if(((Symbol) unit).GetSymbolType() == Symbol.SymbolType.Label){
                         //// TODO: 2016/11/1
                     }else
-                        throw new Exception("unknown symbol type");
+                        throw new SynatxErrorException(position,("unknown symbol type"),GetExecutor());
                 }else
-                    throw new Exception(String.format("unknown unit type %s",unit.GetType().toString()));
+                    throw new SynatxErrorException(position,(String.format("unknown unit type %s",unit.GetType().toString())),GetExecutor());
             }
             return;
         }
